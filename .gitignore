@@ -1,3 +1,7 @@
 #Ignored files
-config.env
-remdat.db
+
+#env files
+*.env
+
+#databases
+*.db

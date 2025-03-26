@@ -72,6 +72,17 @@ async def add_class(interaction: Interaction, class_name: str):
          await interaction.response.send_message(class_name + " has been successfully commited to the database.")
     else:
         await interaction.response.send_message("Class already exists in the table.")
+
+@bot.tree.command(name="add_reminder",description="Add a new reminder based on your specifications")
+@app_commands.describe(reminder_name = "Name of new reminder", expiry = "Date of the reminder in YYYY-MM-DD HH:MM:SS format", class_name="Name of the class for which the reminder is set")
+async def add_reminder(interaction: Interaction, reminder_name: str, expiry: str, class_name: str):
+    try:
+        date = datetime.strptime(expiry, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        await interaction.response.send_message("Wrong date format! Provide date in YYYY-MM-DD HH:MM:SS")
+        raise ValueError("Invalid format.")
+
+    await interaction.response.send_message(date)
    
 
 

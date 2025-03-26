@@ -3,6 +3,7 @@ from discord.ui import Button, View
 from discord.ext import commands
 from datetime import datetime
 from dotenv import load_dotenv
+import asyncio
 import os
 import sqlite3
 
@@ -15,10 +16,14 @@ intents = Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=os.getenv('BOT_PREFIX','!'), intents = intents)
 guild_id = os.getenv('GUILD_ID')
+if guild_id is None:
+    raise ValueError("Something wrong with guild id!")
+if guild_id is not None:
+    print("guild id is " + guild_id)
 
 cursor.execute("""CREATE TABLE IF NOT EXISTS Class(
                ClassId INTEGER PRIMARY KEY, 
-               ClassName text NOT NULL)""")
+               ClassName text NOT NULL UNIQUE)""")
 
 dbconn.commit()
 
@@ -56,10 +61,25 @@ async def show_reminders(interaction: Interaction):
         remindem.add_field(name=f"{reminder['name']}",value=f"Associated class: {reminder['class_name']}, Expiry date: {reminder['expiry']}")
     await interaction.response.send_message(embed = remindem)
 
+@bot.tree.command(name="add_class",description="Add a new class to use for future reminders")
+@app_commands.describe(class_name="Name of the class to add")
+async def add_class(interaction: Interaction, class_name: str):
+    cursor.execute("""INSERT INTO Class(ClassName)
+                   VALUES(?)
+                   ON CONFLICT DO NOTHING""", (class_name,))
+    dbconn.commit()
+    if cursor.rowcount > 0:
+         await interaction.response.send_message(class_name + " has been successfully commited to the database.")
+    else:
+        await interaction.response.send_message("Class already exists in the table.")
+   
+
+
 @bot.event
 async def on_ready():
-    guild = Object(id = guild_id)
+    guild = Object(id = int(guild_id))
     await bot.tree.sync(guild = guild)
+    await bot.tree.sync()
     print(f"Logged in as {bot.user}")
 
 if __name__ == "__main__":

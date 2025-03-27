@@ -78,11 +78,21 @@ async def add_class(interaction: Interaction, class_name: str):
 async def add_reminder(interaction: Interaction, reminder_name: str, expiry: str, class_name: str):
     try:
         date = datetime.strptime(expiry, "%Y-%m-%d %H:%M:%S")
+        print(f"Formatted date is: {date}")
     except ValueError:
         await interaction.response.send_message("Wrong date format! Provide date in YYYY-MM-DD HH:MM:SS")
         raise ValueError("Invalid format.")
 
-    await interaction.response.send_message(date)
+    classid_query = cursor.execute("""SELECT ClassId FROM Class WHERE ClassName = ?""",(class_name,)).fetchone()
+    classid = classid_query[0] if classid_query else None
+    
+
+    format_date = date.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"New date is: {format_date}")
+
+    cursor.execute("""INSERT INTO Reminder(ReminderName,Expiry,ClassId) VALUES (?,?,?)""", (reminder_name,expiry,classid,))
+    dbconn.commit()
+
    
 
 

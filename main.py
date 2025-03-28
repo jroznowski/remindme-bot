@@ -9,6 +9,8 @@ import sqlite3
 
 load_dotenv(dotenv_path= ".env")
 
+"""Managing connecting to the database, getting appropriate data from the .env file
+setup of the bot and creation of the two databases used for managing the reminders"""
 token = os.getenv('BOT_TOKEN')
 dbconn = sqlite3.connect(os.getenv('DATABASE_NAME'))
 cursor = dbconn.cursor()
@@ -38,6 +40,8 @@ dbconn.commit()
 
 @bot.tree.command(name="show_reminders",description="Show currently created reminders")
 async def show_reminders(interaction: Interaction):
+    """View currently created reminders based on an SQL query from the bot's database, 
+    passed back to the output as an formatted embed with all entries."""
     remindem = Embed(title="All reminders", description="A set of currently created reminders")
     cursor.execute("SELECT ReminderId,ReminderName,Expiry,Class.ClassName FROM Reminder INNER JOIN Class ON Reminder.ClassId = Class.ClassId")
     data = cursor.fetchall()
@@ -64,6 +68,8 @@ async def show_reminders(interaction: Interaction):
 @bot.tree.command(name="add_class",description="Add a new class to use for future reminders")
 @app_commands.describe(class_name="Name of the class to add")
 async def add_class(interaction: Interaction, class_name: str):
+    """Add a new class into the database, for further use in creating new reminders.
+    param: class_name: str - name of the class to create"""
     cursor.execute("""INSERT INTO Class(ClassName)
                    VALUES(?)
                    ON CONFLICT DO NOTHING""", (class_name,))
@@ -76,6 +82,10 @@ async def add_class(interaction: Interaction, class_name: str):
 @bot.tree.command(name="add_reminder",description="Add a new reminder based on your specifications")
 @app_commands.describe(reminder_name = "Name of new reminder", expiry = "Date of the reminder in YYYY-MM-DD HH:MM:SS format", class_name="Name of the class for which the reminder is set")
 async def add_reminder(interaction: Interaction, reminder_name: str, expiry: str, class_name: str):
+    """Add a new reminder based on user's input, then output the new reminder in a formatted embed
+    param: reminder_name: str - name of the new reminder
+    param: expiry: str - date of the new reminder in YYYY-MM-DD HH:MM:SS format (hard-coded for now with input verification)
+    param: class_name: str - name of the class that is to be assigned to the reminder"""
     try:
         date = datetime.strptime(expiry, "%Y-%m-%d %H:%M:%S")
         print(f"Formatted date is: {date}")
@@ -86,14 +96,22 @@ async def add_reminder(interaction: Interaction, reminder_name: str, expiry: str
     classid_query = cursor.execute("""SELECT ClassId FROM Class WHERE ClassName = ?""",(class_name,)).fetchone()
     classid = classid_query[0] if classid_query else None
     
-
+    """Provisional date formatting check for debugging purposes"""
     format_date = date.strftime("%Y-%m-%d %H:%M:%S")
     print(f"New date is: {format_date}")
 
     cursor.execute("""INSERT INTO Reminder(ReminderName,Expiry,ClassId) VALUES (?,?,?)""", (reminder_name,expiry,classid,))
     dbconn.commit()
+    
+    newrem = cursor.execute("""SELECT ReminderName,Expiry,Class.ClassName FROM Reminder 
+                            INNER JOIN Class ON Reminder.ClassId = Class.ClassId 
+                            WHERE ReminderName = ? """,(reminder_name,)).fetchone()
 
-   
+    newreminder = {"ReminderName" : newrem[0], "Expiry" : newrem[1], "ClassName" : newrem[2]}
+    reminder_embed = Embed(title="New reminder created successfully!",description="Here are the details of the newly created reminder!")
+    reminder_embed.add_field(name=f"{newreminder['ReminderName']}",value=f"Associated class: {newreminder['ClassName']}, Expiry date: {newreminder['Expiry']}")
+
+    await interaction.response.send_message(embed=reminder_embed)  
 
 
 @bot.event
